@@ -2,7 +2,7 @@
 """Convert TRELLIS.2 / Pixal3D (and helper) safetensors checkpoints to GGUF.
 
 Run with the project's uv venv:
-    /media/ilintar/D_SSD/trellis2-venv/bin/python tools/convert.py [component ...]
+    uv run tools/convert.py [component ...]
 
     TRELLIS_FAMILY=pixal3d tools/convert.py            # Pixal3D flows + NAF
 
@@ -43,11 +43,9 @@ import numpy as np
 import gguf
 
 FAMILY = os.environ.get("TRELLIS_FAMILY", "trellis")
-# Source trees and output directory. The defaults are the author's layout; override them from
-# the environment rather than editing this file (the checkpoints live outside the repo, so
-# every machine — and every Windows contributor — needs different paths).
-MODELS = os.environ.get("TRELLIS_MODELS", "/media/ilintar/D_SSD/models/trellis2")
-PIXAL3D = os.environ.get("PIXAL3D_MODELS", "/media/ilintar/D_SSD/models/pixal3d")
+# Source trees and output directory, relative to the working directory unless configured.
+MODELS = os.environ.get("TRELLIS_MODELS", "models/trellis2")
+PIXAL3D = os.environ.get("PIXAL3D_MODELS", "models/pixal3d")
 OUT = os.environ.get("TRELLIS_GGUF_OUT",
                      f"{MODELS}/gguf" if FAMILY == "trellis" else f"{PIXAL3D}/gguf")
 

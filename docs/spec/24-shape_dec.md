@@ -3,11 +3,11 @@
 
 # FlexiDualGridVaeDecoder ("shape_dec_next_dc_f16c32_fp16") — inference spec
 
-Source of truth: `/tmp/TRELLIS.2/trellis2/models/sc_vaes/fdg_vae.py` (FlexiDualGridVaeDecoder),
-`/tmp/TRELLIS.2/trellis2/models/sc_vaes/sparse_unet_vae.py` (SparseUnetVaeDecoder + blocks),
-`/tmp/TRELLIS.2/trellis2/modules/sparse/spatial/spatial2channel.py` (SparseChannel2Spatial),
-`/tmp/TRELLIS.2/o-voxel/o_voxel/convert/flexible_dual_grid.py` (flexible_dual_grid_to_mesh),
-config `/tmp/t2cfg/shape_dec_next_dc_f16c32_fp16.json`.
+Source of truth: `reference/TRELLIS.2/trellis2/models/sc_vaes/fdg_vae.py` (FlexiDualGridVaeDecoder),
+`reference/TRELLIS.2/trellis2/models/sc_vaes/sparse_unet_vae.py` (SparseUnetVaeDecoder + blocks),
+`reference/TRELLIS.2/trellis2/modules/sparse/spatial/spatial2channel.py` (SparseChannel2Spatial),
+`reference/TRELLIS.2/o-voxel/o_voxel/convert/flexible_dual_grid.py` (flexible_dual_grid_to_mesh),
+config `reference/t2cfg/shape_dec_next_dc_f16c32_fp16.json`.
 
 ## 0. What it is / where it sits in the pipeline
 This is the **shape SLat decoder** (`self.models['shape_slat_decoder']`). Stage ① produced active voxel
@@ -213,7 +213,7 @@ These are consumed by the texture decoder. Persist coords+logits per up-block.
 ## Weight key map
 
 
-All keys from /devel/alt/trellis.cpp/docs/spec/keys/ckpts__shape_dec_next_dc_f16c32_fp16.keys.txt (f16).
+All keys from docs/spec/keys/ckpts__shape_dec_next_dc_f16c32_fp16.keys.txt (f16).
 Conv weights are stored ALREADY PERMUTED to (Co, Kd, Kh, Kw, Ci) — see conv_flex_gemm.py line 34
 `weight.permute(0,2,3,4,1).contiguous()`. So shape [Co,3,3,3,Ci]. Linear weights are torch [out,in].
 

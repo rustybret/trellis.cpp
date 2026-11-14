@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Golden dump for the FlowEulerGuidanceIntervalSampler driving the SS-flow DiT.
 Runs on GPU (VRAM), host-RAM-light. Saves noise, cond, neg_cond, final latent.
-    /media/ilintar/D_SSD/trellis2-venv/bin/python tools/ref_ss_sample.py
+    python tools/ref_ss_sample.py
 """
 import os, sys, json
 os.environ["ATTN_BACKEND"] = "sdpa"
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-sys.path.insert(0, "/tmp/TRELLIS.2")
+reference_dir = os.environ.get("TRELLIS_REFERENCE_DIR")
+if not reference_dir:
+    sys.exit("TRELLIS_REFERENCE_DIR must point to the TRELLIS.2 reference checkout")
+sys.path.insert(0, reference_dir)
 import numpy as np
 import torch
 from safetensors.torch import load_file
@@ -15,8 +18,9 @@ from trellis2.pipelines.samplers import FlowEulerGuidanceIntervalSampler
 
 GS = float(os.environ.get("GS", "7.5"))
 GR = float(os.environ.get("GR", "0.7"))
-CKPT = "/media/ilintar/D_SSD/models/trellis2/ckpts/ss_flow_img_dit_1_3B_64_bf16"
-OUT  = os.environ.get("OUT", "/media/ilintar/D_SSD/models/trellis2/ref/ss_sample"); os.makedirs(OUT, exist_ok=True)
+M = os.environ.get("TRELLIS_MODELS", "models/trellis2")
+CKPT = os.path.join(M, "ckpts/ss_flow_img_dit_1_3B_64_bf16")
+OUT  = os.environ.get("OUT", os.path.join(M, "ref/ss_sample")); os.makedirs(OUT, exist_ok=True)
 DEV  = os.environ.get("REF_DEV", "cuda:1")
 DT   = torch.float32
 

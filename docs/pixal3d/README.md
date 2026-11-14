@@ -199,9 +199,9 @@ script needs editing:
 
 ```bash
 export TRELLIS_FAMILY=pixal3d
-export PIXAL3D_MODELS=/path/to/TencentARC-Pixal3D    # the ckpts/ tree
-export TRELLIS_GGUF_OUT=/path/to/models
-export NAF_CKPT=/path/to/naf_release.pth             # optional; defaults to $PIXAL3D_MODELS/naf/
+export PIXAL3D_MODELS=reference/TencentARC-Pixal3D    # the ckpts/ tree
+export TRELLIS_GGUF_OUT=models
+export NAF_CKPT=models/naf_release.pth             # optional; defaults to $PIXAL3D_MODELS/naf/
 
 python tools/convert.py             # everything
 python tools/convert.py naf         # just the upsampler

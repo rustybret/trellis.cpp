@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trellis 3D Studio</title>
+<script type="module" src="/model-viewer.min.js"></script>
+<style>
+  :root {
+    --bg-dark: #121316;
+    --panel-bg: #1a1b20;
+    --panel-border: #2c2d35;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --text-primary: #f3f4f6;
+    --text-muted: #9ca3af;
+    --success: #10b981;
+    --error: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  header {
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .brand {
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+  }
+  .brand span { color: var(--accent); }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    background: #23252d;
+    padding: 5px 12px;
+    border-radius: 9999px;
+    border: 1px solid var(--panel-border);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+  .dot.online { background: var(--success); }
+  .dot.offline { background: var(--error); }
+  
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    height: calc(100vh - 57px);
+  }
+  .sidebar {
+    background: var(--panel-bg);
+    border-right: 1px solid var(--panel-border);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    overflow-y: auto;
+  }
+  .dropzone {
+    border: 2px dashed var(--panel-border);
+    border-radius: 10px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: #15161a;
+    transition: all 0.2s;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: #171c26;
+  }
+  .dropzone img {
+    max-width: 100%;
+    max-height: 180px;
+    object-fit: contain;
+    border-radius: 6px;
+  }
+  .dropzone-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .dz-icon { font-size: 32px; color: var(--accent); }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-group label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  select, input[type="number"], input[type="text"] {
+    background: #15161a;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 14px;
+    outline: none;
+  }
+  select:focus, input:focus {
+    border-color: var(--accent);
+  }
+  .row-controls {
+    display: flex;
+    gap: 10px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .viewport-panel {
+    display: flex;
+    flex-direction: column;
+    background: #0f1013;
+    position: relative;
+  }
+  model-viewer {
+    width: 100%;
+    height: 100%;
+    background: #0f1013;
+    --poster-color: transparent;
+  }
+  .viewer-toolbar {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    background: rgba(26, 27, 32, 0.85);
+    backdrop-filter: blur(8px);
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+  }
+  .btn-tool {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .btn-tool:hover { color: #fff; background: #282a32; }
+  .btn-tool.active { color: var(--accent); background: #1e2433; }
+  
+  .bottom-bar {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+  }
+  .bottom-bar > * { pointer-events: auto; }
+  .btn-download {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    display: none;
+  }
+  .btn-download:hover { background: var(--accent-hover); }
+  
+  .progress-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 16, 19, 0.85);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 20;
+  }
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--panel-border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-text { font-size: 16px; font-weight: 500; }
+  .progress-timer { font-size: 14px; color: var(--text-muted); }
+  
+  .gallery-drawer {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 6px;
+    background: rgba(26, 27, 32, 0.85);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    max-width: 60%;
+  }
+  .thumb {
+    width: 50px;
+    height: 50px;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    object-fit: cover;
+  }
+  .thumb.active { border-color: var(--accent); }
+
+  .library-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 6px 2px;
+    margin-bottom: 12px;
+    scrollbar-width: thin;
+  }
+  .library-thumb {
+    width: 64px;
+    height: 64px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+    border: 2px solid var(--border);
+    background: #000;
+    transition: transform 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+  }
+  .library-thumb:hover {
+    border-color: var(--accent);
+    transform: scale(1.05);
+  }
+  .btn-review {
+    background: #27272a;
+    color: #f4f4f5;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    display: none;
+    margin-right: 8px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-review:hover {
+    background: #3f3f46;
+    border-color: #71717a;
+  }
+  .review-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 9, 11, 0.9);
+    z-index: 10000;
+    padding: 24px;
+    overflow-y: auto;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .review-modal.active {
+    display: flex;
+  }
+  .review-modal img {
+    max-width: 95vw;
+    max-height: 85vh;
+    border-radius: 8px;
+    border: 1px solid #27272a;
+    box-shadow: 0 16px 36px rgba(0,0,0,0.8);
+  }
+  .review-modal-actions {
+    margin-top: 16px;
+    display: flex;
+    gap: 12px;
+  }
+
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span>◈</span> Trellis 3D Studio</div>
+  <div class="status-badge">
+    <div id="server-dot" class="dot offline"></div>
+    <span id="server-status">Checking server...</span>
+  </div>
+</header>
+
+<main>
+  <div class="sidebar">
+    
+    <div class="field">
+      <label>Input Library (trellis-3d-studio/input)</label>
+      <div id="library-strip" class="library-strip">
+        <span style="font-size:11px; color:#71717a;">Loading inputs...</span>
+      </div>
+    </div>
+
+    <div class="dropzone" id="dropzone">
+      <img id="preview-img" style="display:none;">
+      <div class="dropzone-prompt" id="dz-prompt">
+        <div class="dz-icon">⬆</div>
+        <div><strong>Click to upload</strong> or drag image here</div>
+        <div style="font-size:12px;">PNG, JPG, WEBP (transparent or white bg works best)</div>
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none;">
+    </div>
+
+    <div class="form-group">
+      <label>Model Architecture</label>
+      <select id="cfg-model">
+        <option value="trellis" selected>TRELLIS.2 (Organic / Creatures / General)</option>
+        <option value="pixal3d">Pixal3D (Hard-Surface / Mechanical / Ortho Lock)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Speed & Quality Preset</label>
+      <select id="cfg-preset">
+        <option value="quality" selected>💎 Full Quality 1024 (12 steps · 1024 tex · Full F16) [Recommended]</option>
+        <option value="balanced">⚡ Balanced (1024 geo · 512 tex · 9 steps) ~12m</option>
+        <option value="draft">🚀 Draft (512 geo · 8 steps) ~4m</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Background Removal</label>
+      <select id="cfg-bg">
+        <option value="birefnet" selected>BiRefNet (AI Matting)</option>
+        <option value="threshold">Threshold (Simple Cutout)</option>
+        <option value="none">None (Already Transparent)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Seed</label>
+      <div class="row-controls">
+        <input type="number" id="cfg-seed" value="42" style="flex:1;">
+        <button type="button" id="btn-random-seed" class="btn-tool" style="background:#282a32;">🎲 Random</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Face Target</label>
+      <select id="cfg-faces">
+        <option value="auto" selected>Auto (300,000 faces · Full Detail · Recommended)</option>
+        <option value="100000">100,000 faces (Mid-Poly)</option>
+        <option value="50000">50,000 faces (Game Asset / Low-Poly)</option>
+        <option value="20000">20,000 faces (Very Low-Poly)</option>
+      </select>
+    </div>
+
+    <button id="btn-generate" class="btn-primary" disabled>
+      Generate 3D Model
+    </button>
+  </div>
+
+  <div class="viewport-panel">
+    <div class="viewer-toolbar">
+      <button class="btn-tool" id="btn-spin">🔄 Spin</button>
+      <button class="btn-tool" id="btn-reset">🎯 Reset</button>
+    </div>
+
+    <model-viewer id="viewer" camera-controls shadow-intensity="1" exposure="1" interaction-prompt="none" auto-rotate>
+    </model-viewer>
+
+    <div class="progress-overlay" id="progress-overlay" style="display:none;">
+      <div class="spinner"></div>
+      <div class="progress-text" id="progress-text">Generating 3D Model...</div>
+      <div class="progress-timer" id="progress-timer">Elapsed: 0s</div>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="gallery-drawer" id="gallery" style="display:none;"></div>
+      <button id="btn-review" class="btn-review">🔍 Review (8-View Turnaround)</button>
+      <button id="btn-download" class="btn-download">⬇ Download .GLB</button>
+    </div>
+  </div>
+</main>
+
+<script>
+  const serverHost = window.location.origin;
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const previewImg = document.getElementById('preview-img');
+  const dzPrompt = document.getElementById('dz-prompt');
+  const btnGenerate = document.getElementById('btn-generate');
+  const btnRandomSeed = document.getElementById('btn-random-seed');
+  const viewer = document.getElementById('viewer');
+  const progressOverlay = document.getElementById('progress-overlay');
+  const progressTimer = document.getElementById('progress-timer');
+  const btnDownload = document.getElementById('btn-download');
+  const serverDot = document.getElementById('server-dot');
+  const serverStatus = document.getElementById('server-status');
+  const gallery = document.getElementById('gallery');
+  const btnSpin = document.getElementById('btn-spin');
+  const btnReset = document.getElementById('btn-reset');
+
+  let selectedFile = null;
+  let currentGlbUrl = null;
+  let historyItems = [];
+
+  // Health check
+  async function checkHealth() {
+    try {
+      const res = await fetch('/health', { cache: 'no-store' });
+      if (res.ok) {
+        serverDot.className = 'dot online';
+        serverStatus.textContent = 'Server Online (Vulkan)';
+      } else {
+        serverDot.className = 'dot offline';
+        serverStatus.textContent = 'Server Error';
+      }
+    } catch (e) {
+      serverDot.className = 'dot offline';
+      serverStatus.textContent = 'Server Offline';
+    }
+  }
+  checkHealth();
+  setInterval(checkHealth, 10000);
+
+  // File selection
+  dropzone.onclick = () => fileInput.click();
+  fileInput.onchange = (e) => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  };
+  dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+  dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+  dropzone.ondrop = (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  };
+
+  function handleFile(file) {
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewImg.style.display = 'block';
+    dzPrompt.style.display = 'none';
+    btnGenerate.disabled = false;
+  }
+
+  btnRandomSeed.onclick = () => {
+    document.getElementById('cfg-seed').value = Math.floor(Math.random() * 100000);
+  };
+
+  btnSpin.onclick = () => {
+    viewer.autoRotate = !viewer.autoRotate;
+    btnSpin.classList.toggle('active', viewer.autoRotate);
+  };
+  btnReset.onclick = () => {
+    viewer.cameraOrbit = '0deg 75deg 105%';
+  };
+
+  // Generation
+  btnGenerate.onclick = async () => {
+    if (!selectedFile) return;
+
+    btnGenerate.disabled = true;
+    progressOverlay.style.display = 'flex';
+    const startTime = Date.now();
+    const timerInterval = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      progressTimer.textContent = 'Elapsed: ' + elapsed + 's (generation typically takes 10-20 min on Vega 64)';
+    }, 1000);
+
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    const preset = document.getElementById('cfg-preset').value;
+    let resVal = '1024', texResVal = '1024', stepsVal = '12';
+    if (preset === 'balanced') { resVal = '1024'; texResVal = '512'; stepsVal = '9'; }
+    else if (preset === 'draft') { resVal = '512'; texResVal = '512'; stepsVal = '8'; }
+    formData.append('model', document.getElementById('cfg-model').value);
+    formData.append('resolution', resVal);
+    formData.append('tex_res', texResVal);
+    formData.append('steps', stepsVal);
+    formData.append('fa_fast', '1');
+    formData.append('seed', document.getElementById('cfg-seed').value);
+    const bgMode = document.getElementById('cfg-bg').value;
+    if (bgMode !== 'none') formData.append('bg_removal', bgMode);
+    const faces = document.getElementById('cfg-faces').value;
+    if (faces !== 'auto') formData.append('faces', faces);
+
+    try {
+      const res = await fetch('/generate', {
+        method: 'POST',
+        body: formData
+      });
+
+      clearInterval(timerInterval);
+
+      if (!res.ok) {
+        let errText = 'Failed';
+        try {
+          const errJson = await res.json();
+          errText = errJson.error || JSON.stringify(errJson);
+        } catch (_) { errText = await res.text(); }
+        alert('Generation Error (' + res.status + '): ' + errText);
+        return;
+      }
+
+      const blob = await res.blob();
+      if (currentGlbUrl) URL.revokeObjectURL(currentGlbUrl);
+      currentGlbUrl = URL.createObjectURL(blob);
+      currentGlbName = res.headers.get('X-Trellis-Saved-Glb') || ('trellis_' + Date.now() + '.glb');
+      btnReview.style.display = 'inline-block';
+      loadInputLibrary(); // Refresh library with newly submitted image
+
+      viewer.src = currentGlbUrl;
+
+      btnDownload.style.display = 'block';
+      btnDownload.onclick = () => {
+        const a = document.createElement('a');
+        a.href = currentGlbUrl;
+        a.download = 'trellis_' + Date.now() + '.glb';
+        a.click();
+      };
+
+      // Add to gallery
+      const thumbUrl = previewImg.src;
+      historyItems.push({ thumb: thumbUrl, glb: currentGlbUrl });
+      renderGallery();
+
+    } catch (e) {
+      clearInterval(timerInterval);
+      alert('Network error during generation: ' + e.message);
+    } finally {
+      progressOverlay.style.display = 'none';
+      btnGenerate.disabled = false;
+    }
+  };
+
+  function renderGallery() {
+    if (!historyItems.length) return;
+    gallery.style.display = 'flex';
+    gallery.innerHTML = '';
+    historyItems.forEach((item, idx) => {
+      const img = document.createElement('img');
+      img.src = item.thumb;
+      img.className = 'thumb' + (idx === historyItems.length - 1 ? ' active' : '');
+      img.onclick = () => {
+        document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+        img.classList.add('active');
+        viewer.src = item.glb;
+        currentGlbUrl = item.glb;
+      };
+      gallery.appendChild(img);
+    });
+  }
+
+  // --- Input Library & 8-View Turnaround Review Integration ---
+  const btnReview = document.getElementById('btn-review');
+  const reviewModal = document.getElementById('review-modal');
+  const reviewModalImg = document.getElementById('review-modal-img');
+  const reviewModalDownload = document.getElementById('review-modal-download');
+  const libraryStrip = document.getElementById('library-strip');
+  let currentGlbName = null;
+
+  async function loadInputLibrary() {
+    if (!libraryStrip) return;
+    try {
+      const res = await fetch('/api/inputs');
+      if (!res.ok) {
+        libraryStrip.innerHTML = '<span style="font-size:11px;color:#ef4444;">Failed to load library</span>';
+        return;
+      }
+      const list = await res.json();
+      if (!list || list.length === 0) {
+        libraryStrip.innerHTML = '<span style="font-size:11px;color:#71717a;">No images in input library yet.</span>';
+        return;
+      }
+      libraryStrip.innerHTML = '';
+      list.forEach(item => {
+        const img = document.createElement('img');
+        img.className = 'library-thumb';
+        img.src = item.url;
+        img.title = item.name;
+        img.onclick = (e) => selectLibraryImage(item.url, item.name, e.currentTarget);
+        libraryStrip.appendChild(img);
+      });
+    } catch (e) {
+      console.warn('Failed to load input library', e);
+      libraryStrip.innerHTML = '<span style="font-size:11px;color:#ef4444;">Network error loading library</span>';
+    }
+  }
+
+  async function selectLibraryImage(url, name, targetEl) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      selectedFile = new File([blob], name, { type: blob.type || 'image/png' });
+      previewImg.src = url;
+      previewImg.style.display = 'block';
+      dzPrompt.style.display = 'none';
+      btnGenerate.disabled = false;
+      dropzone.style.borderColor = 'var(--accent)';
+      document.querySelectorAll('.library-thumb').forEach(t => t.style.borderColor = 'var(--border)');
+      if (targetEl) targetEl.style.borderColor = 'var(--accent)';
+    } catch (e) {
+      alert('Failed to select image: ' + e.message);
+    }
+  }
+
+  if (btnReview) {
+    btnReview.addEventListener('click', async () => {
+      if (!currentGlbName) return;
+      const origText = btnReview.innerHTML;
+      btnReview.disabled = true;
+      btnReview.innerHTML = '<span class="spinner" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:6px;"></span> Rendering 8-View Panel...';
+      try {
+        const res = await fetch('/api/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ glb: currentGlbName })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+          reviewModalImg.src = data.review_url + '?t=' + Date.now();
+          reviewModalDownload.href = data.review_url;
+          reviewModalDownload.download = data.review_png;
+          reviewModal.classList.add('active');
+        } else {
+          alert('Review generation failed: ' + (data.error || 'Server error'));
+        }
+      } catch (e) {
+        alert('Review request error: ' + e.message);
+      } finally {
+        btnReview.disabled = false;
+        btnReview.innerHTML = origText;
+      }
+    });
+  }
+
+  // Load library immediately on startup
+  loadInputLibrary();
+</script>
+
+<div id="review-modal" class="review-modal" onclick="if(event.target===this)this.classList.remove('active')">
+  <img id="review-modal-img" src="" alt="8-View Turnaround Sheet" />
+  <div class="review-modal-actions">
+    <a id="review-modal-download" class="btn-primary" style="text-decoration:none; display:inline-block; padding:8px 16px; border-radius:6px;" download>⬇ Download Review Panel</a>
+    <button class="btn-secondary" style="padding:8px 16px; border-radius:6px; cursor:pointer;" onclick="document.getElementById('review-modal').classList.remove('active')">Close</button>
+  </div>
+</div>
+
+</body>
+</html>

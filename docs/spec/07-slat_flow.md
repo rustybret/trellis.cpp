@@ -2,7 +2,7 @@
 
 ## SLatFlowModel (Structured Latent Flow / sparse DiT denoiser)
 
-Source: `/tmp/TRELLIS.2/trellis2/models/structured_latent_flow.py`. Two checkpoints both use class `ElasticSLatFlowModel` (subclass of `SLatFlowModel` via `SparseTransformerElasticMixin`; the mixin is training-only memory management — at inference it behaves identically to `SLatFlowModel`, so port `SLatFlowModel.forward` exactly).
+Source: `reference/TRELLIS.2/trellis2/models/structured_latent_flow.py`. Two checkpoints both use class `ElasticSLatFlowModel` (subclass of `SLatFlowModel` via `SparseTransformerElasticMixin`; the mixin is training-only memory management — at inference it behaves identically to `SLatFlowModel`, so port `SLatFlowModel.forward` exactly).
 
 ### 0. Config values (from `configs/gen/slat_flow_*_512_bf16.json`)
 Common to BOTH variants:

@@ -10,7 +10,7 @@ flat-shaded Python rasterizer in `render_glb.py` / `render_glb_fast.py`.
 1. Symlink or copy the GLB next to this directory's files, then serve it:
 
    ```bash
-   ln -sf /path/to/model.glb tools/mv_preview/model.glb
+   cp out/model.glb tools/mv_preview/model.glb
    python3 tools/mv_preview/serve.py   # http://127.0.0.1:8177, supports PUT uploads
    ```
 

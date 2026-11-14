@@ -6,19 +6,23 @@ seeded input and saves inputs + per-stage intermediates to .npy. Runs on GPU
 (weights load straight to VRAM) to keep host RAM low — never a CPU forward of
 the 1.3B net.
 
-    /media/ilintar/D_SSD/trellis2-venv/bin/python tools/ref_ss_flow.py
+    python tools/ref_ss_flow.py
 """
 import os, sys, json
 os.environ["ATTN_BACKEND"] = "sdpa"          # must precede trellis2 import
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-sys.path.insert(0, "/tmp/TRELLIS.2")
+reference_dir = os.environ.get("TRELLIS_REFERENCE_DIR")
+if not reference_dir:
+    sys.exit("TRELLIS_REFERENCE_DIR must point to the TRELLIS.2 reference checkout")
+sys.path.insert(0, reference_dir)
 import numpy as np
 import torch
 from safetensors.torch import load_file
 from trellis2.models.sparse_structure_flow import SparseStructureFlowModel
 
-CKPT = "/media/ilintar/D_SSD/models/trellis2/ckpts/ss_flow_img_dit_1_3B_64_bf16"
-OUT  = "/media/ilintar/D_SSD/models/trellis2/ref/ss_flow"
+M = os.environ.get("TRELLIS_MODELS", "models/trellis2")
+CKPT = os.path.join(M, "ckpts/ss_flow_img_dit_1_3B_64_bf16")
+OUT  = os.path.join(M, "ref/ss_flow")
 os.makedirs(OUT, exist_ok=True)
 DEV  = os.environ.get("REF_DEV", "cuda:1")     # 5060 Ti has the most free VRAM
 DTYPE = torch.float32                          # clean f32 golden

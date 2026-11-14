@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """Golden dump for SparseStructureDecoder: SS latent -> occupancy logits.
-    /media/ilintar/D_SSD/trellis2-venv/bin/python tools/ref_ss_dec.py
+    python tools/ref_ss_dec.py
 """
 import os, sys, json
 os.environ["ATTN_BACKEND"] = "sdpa"
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-sys.path.insert(0, "/tmp/TRELLIS.2")
+reference_dir = os.environ.get("TRELLIS_REFERENCE_DIR")
+if not reference_dir:
+    sys.exit("TRELLIS_REFERENCE_DIR must point to the TRELLIS.2 reference checkout")
+sys.path.insert(0, reference_dir)
 import numpy as np, torch
 from safetensors.torch import load_file
 from trellis2.models.sparse_structure_vae import SparseStructureDecoder
 
-CK = "/media/ilintar/D_SSD/models/trellis2/tilarge/ckpts/ss_dec_conv3d_16l8_fp16"
-ZIN = "/media/ilintar/D_SSD/models/trellis2/ref/ss_sample/samples.npy"
-OUT = "/media/ilintar/D_SSD/models/trellis2/ref/ss_dec"; os.makedirs(OUT, exist_ok=True)
+M = os.environ.get("TRELLIS_MODELS", "models/trellis2")
+CK = os.path.join(M, "tilarge/ckpts/ss_dec_conv3d_16l8_fp16")
+ZIN = os.path.join(M, "ref/ss_sample/samples.npy")
+OUT = os.path.join(M, "ref/ss_dec"); os.makedirs(OUT, exist_ok=True)
 DEV = os.environ.get("REF_DEV", "cuda:1")
 
 cfg = json.load(open(CK + ".json"))["args"]; cfg["use_fp16"] = False

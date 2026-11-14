@@ -9,7 +9,13 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Git QUIET)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+add_custom_target(trellis-check-portable-paths ALL
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/check_portable_paths.py"
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  COMMENT "Checking first-party deployment paths")
+
+find_package(Git REQUIRED)
 set(TRELLIS_GIT_COMMIT "")
 set(TRELLIS_GIT_DIRTY 0)
 set(TRELLIS_APP_VERSION "v${PROJECT_VERSION}")
@@ -119,6 +125,7 @@ add_library(trellis_core STATIC
   src/quad_topology.cpp
   src/quad_component_cover.cpp
 )
+add_dependencies(trellis_core trellis-check-portable-paths)
 target_include_directories(trellis_core PUBLIC include ${GGML_DIR}/include ${CMAKE_SOURCE_DIR}/thirdparty/stb ${CMAKE_SOURCE_DIR}/thirdparty/xatlas ${CMAKE_SOURCE_DIR}/thirdparty/meshoptimizer ${CMAKE_SOURCE_DIR}/thirdparty/fqms)
 target_compile_definitions(trellis_core PRIVATE TRELLIS_GIT_COMMIT="${TRELLIS_GIT_COMMIT}" TRELLIS_GIT_DIRTY=${TRELLIS_GIT_DIRTY} TRELLIS_BUILD_TIMESTAMP="${TRELLIS_BUILD_TIMESTAMP_UTC}" TRELLIS_APP_VERSION="${TRELLIS_APP_VERSION}")
 target_link_libraries(trellis_core PUBLIC ggml ggml-base ggml-cpu)
@@ -480,6 +487,9 @@ add_executable(trellis-server src/trellis-server.cpp src/trellis_cli.cpp src/tre
 target_include_directories(trellis-server PRIVATE ${CMAKE_SOURCE_DIR}/thirdparty/cpp-httplib)
 target_link_libraries(trellis-server PRIVATE trellis_core Threads::Threads)
 set_target_properties(trellis-server PROPERTIES BUILD_RPATH "${GGML_RPATH}")
+
+add_executable(trellis-test-server-paths src/test_server_paths.cpp)
+target_include_directories(trellis-test-server-paths PRIVATE include)
 
 add_executable(trellis-test-ss-full src/test_ss_full.cpp)
 target_link_libraries(trellis-test-ss-full PRIVATE trellis_core)

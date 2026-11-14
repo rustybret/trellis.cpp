@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """Stitch 4x 2048 view PNGs into the showcase 4096x4096 quad grid."""
 import sys
+import os
+from pathlib import Path
 from PIL import Image
-MV = "/devel/alt/trellis.cpp/tools/mv_preview"
+MV = os.environ.get("TRELLIS_PREVIEW_DIR", str(Path(__file__).resolve().parent))
 for name in sys.argv[1:]:
     tiles = [Image.open(f"{MV}/{name}_{v}.png") for v in ["front", "right", "back", "left"]]
     S = tiles[0].size[0]

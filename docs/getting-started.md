@@ -55,7 +55,7 @@ Examples:
 
 ```bash
 # reuse weights already on a fast drive; force Vulkan
-./install/install.sh --backend vulkan --models-dir /mnt/ssd/trellis --skip-models
+./install/install.sh --backend vulkan --models-dir ./models --skip-models
 ```
 
 ## Backend detection
@@ -84,8 +84,9 @@ The UI is a plain web bundle, so you can skip the desktop app entirely:
 
 ```bash
 # start the server the installer downloaded
-~/.local/share/trellis-studio/runtime/trellis-server \
-  --models ~/.local/share/trellis-studio/models --port 8080
+# TRELLIS_STUDIO_DATA is the install data folder from the table above
+"$TRELLIS_STUDIO_DATA/runtime/trellis-server" \
+  --models "$TRELLIS_STUDIO_DATA/models" --port 8080
 ```
 
 then open the built UI (or `npm run dev` in `app/`) and point it at

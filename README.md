@@ -122,7 +122,7 @@ cmake -S . -B build -DGGML_VULKAN=ON \
 cmake --build build --target trellis-cli -j
 mkdir -p out/retopo-work
 TMPDIR="$PWD/out/retopo-work" ./build/trellis-cli assets/goblin.png out/goblin-quads.glb \
-  --models /path/to/gguf --seed 42 --res 1024 --tex-res 512 \
+  --models models/gguf --seed 42 --res 1024 --tex-res 512 \
   --retopo 512 0 900000 --retopo-no-weld-fill --retopo-dual-pbr \
   --retopo-atlas 4096 --retopo-workdir out/retopo-work
 ```
@@ -134,7 +134,7 @@ cmake -S . -B build-retopo -G Ninja -DGGML_VULKAN=ON -DGGML_OPENMP=OFF `
 cmake --build build-retopo --target trellis-cli --parallel
 New-Item -ItemType Directory -Force out/retopo-work | Out-Null
 .\build-retopo\trellis-cli.exe assets/goblin.png out/goblin-quads.glb `
-  --models C:\path\to\gguf --seed 42 --res 1024 --tex-res 512 `
+  --models models\gguf --seed 42 --res 1024 --tex-res 512 `
   --retopo 512 0 900000 --retopo-no-weld-fill --retopo-dual-pbr `
   --retopo-atlas 4096 --retopo-workdir out/retopo-work
 ```
@@ -365,7 +365,7 @@ extract it anywhere and pass the directory containing `hexagon_sdk.json` to
 ```powershell
 scripts\build-arm64.ps1 -Backend cpu
 scripts\build-arm64.ps1 -Backend vulkan
-scripts\build-arm64.ps1 -Backend hexagon -HexagonSdk C:\Qualcomm\Hexagon_SDK\6.6.0.0
+scripts\build-arm64.ps1 -Backend hexagon -HexagonSdk "$env:HEXAGON_SDK_ROOT"
 ```
 
 Windows requires the generated HTP Ops libraries and catalog to be signed with a trusted

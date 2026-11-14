@@ -11,10 +11,10 @@ clones listed in §1. Where a kernel detail is load-bearing, the code is quoted.
 
 | Repo | Path | Commit | Contents used here |
 |---|---|---|---|
-| microsoft/TRELLIS.2 | `/devel/alt/refs/TRELLIS.2` | `75fbf01` | `o-voxel/o_voxel/postprocess.py`, `app.py`, `example.py`, `trellis2/pipelines/trellis2_image_to_3d.py`, `trellis2/pipelines/trellis2_texturing.py`, `trellis2/representations/mesh/base.py` |
-| CuMesh | `/devel/alt/refs/CuMesh` | `12289e1` | `cumesh/{cumesh,remeshing,bvh,xatlas}.py`, `src/remesh/{simple_dual_contour,svox2vert}.cu`, `src/{clean_up,simplify,atlas,geometry,connectivity}.cu`, `src/dtypes.cuh`, `src/hash/*`, `third_party/xatlas/*` |
-| FlexGEMM | `/devel/alt/refs/FlexGEMM` | `6dd94a8` | `flex_gemm/ops/grid_sample/{grid_sample,grid_sample_torch}.py`, `flex_gemm/kernels/cuda/grid_sample/grid_sample.cu`, `flex_gemm/ops/utils.py` |
-| HF space (ground truth for user-visible output) | `/devel/alt/refs/trellis2-space` | `ebf60b2` | `app.py`, vendored `trellis2/` tree |
+| microsoft/TRELLIS.2 | `reference/TRELLIS.2` | `75fbf01` | `o-voxel/o_voxel/postprocess.py`, `app.py`, `example.py`, `trellis2/pipelines/trellis2_image_to_3d.py`, `trellis2/pipelines/trellis2_texturing.py`, `trellis2/representations/mesh/base.py` |
+| CuMesh | `reference/CuMesh` | `12289e1` | `cumesh/{cumesh,remeshing,bvh,xatlas}.py`, `src/remesh/{simple_dual_contour,svox2vert}.cu`, `src/{clean_up,simplify,atlas,geometry,connectivity}.cu`, `src/dtypes.cuh`, `src/hash/*`, `third_party/xatlas/*` |
+| FlexGEMM | `reference/FlexGEMM` | `6dd94a8` | `flex_gemm/ops/grid_sample/{grid_sample,grid_sample_torch}.py`, `flex_gemm/kernels/cuda/grid_sample/grid_sample.cu`, `flex_gemm/ops/utils.py` |
+| HF space (ground truth for user-visible output) | `reference/trellis2-space` | `ebf60b2` | `app.py`, vendored `trellis2/` tree |
 | cubvh (BVH impl) | **not vendored** — git submodule `third_party/cubvh` → `https://github.com/JeffreyXiang/cubvh.git`, branch `trellis.2` (CuMesh/.gitmodules) | n/a | Python-side contract read from `CuMesh/cumesh/bvh.py` |
 
 The vendored xatlas (`CuMesh/third_party/xatlas/xatlas.{cpp,h}`) was diffed

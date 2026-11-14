@@ -42,6 +42,35 @@ def check_cli() -> None:
             assert result.mode == "RGBA"
             assert result.getchannel("A").getbbox() is not None
         print("PASS missing paths rejected; explicit CLI paths produce nonempty RGBA")
+        partial = subprocess.run(
+            [sys.executable, str(script), str(source)], env=environment,
+            capture_output=True, text=True, check=False,
+        )
+        assert partial.returncode == 2, partial.stderr
+
+        environment_output = directory / "environment-output.png"
+        selected_environment = {
+            **environment,
+            "TRELLIS_PREPROCESS_INPUT": str(source),
+            "TRELLIS_PREPROCESS_OUTPUT": str(environment_output),
+        }
+        from_environment = subprocess.run(
+            [sys.executable, str(script)], env=selected_environment,
+            capture_output=True, text=True, check=False,
+        )
+        assert from_environment.returncode == 0, from_environment.stderr
+        with Image.open(environment_output) as result:
+            assert result.size == (1024, 1024)
+            assert result.getchannel("A").getbbox() is not None
+
+        # Explicit positional arguments take precedence over environment paths.
+        selected_environment["TRELLIS_PREPROCESS_INPUT"] = str(directory / "absent.png")
+        precedence = subprocess.run(
+            [sys.executable, str(script), str(source), str(output)],
+            env=selected_environment, capture_output=True, text=True, check=False,
+        )
+        assert precedence.returncode == 0, precedence.stderr
+        print("PASS partial paths rejected; environment paths and CLI precedence verified")
 
 
 if __name__ == "__main__":

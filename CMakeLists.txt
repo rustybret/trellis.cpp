@@ -481,6 +481,9 @@ target_include_directories(trellis-server PRIVATE ${CMAKE_SOURCE_DIR}/thirdparty
 target_link_libraries(trellis-server PRIVATE trellis_core Threads::Threads)
 set_target_properties(trellis-server PROPERTIES BUILD_RPATH "${GGML_RPATH}")
 
+add_executable(trellis-test-server-paths src/test_server_paths.cpp)
+target_include_directories(trellis-test-server-paths PRIVATE include)
+
 add_executable(trellis-test-ss-full src/test_ss_full.cpp)
 target_link_libraries(trellis-test-ss-full PRIVATE trellis_core)
 set_target_properties(trellis-test-ss-full PROPERTIES BUILD_RPATH "${GGML_RPATH}")

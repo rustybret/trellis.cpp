@@ -22,6 +22,7 @@
 //
 #include "trellis_args.h"
 #include "trellis_run.h"
+#include "server_paths.h"
 #include "httplib.h"
 
 #include <algorithm>
@@ -73,6 +74,13 @@ std::string sanitize_filename(const std::string& raw) {
     return clean.empty() ? "image.png" : clean;
 }
 
+// Configuration paths may contain spaces and shell metacharacters.
+std::string shell_quote(const std::string& value) {
+    std::string quoted = "'";
+    for (char c : value) quoted += c == '\'' ? "'\\''" : std::string(1, c);
+    return quoted + "'";
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -86,6 +94,7 @@ int main(int argc, char** argv) {
 
     std::mutex gen_mu;
     httplib::Server svr;
+    const trellis::ServerPaths paths;
 
     svr.set_post_routing_handler([](const httplib::Request&, httplib::Response& res) {
         res.set_header("Access-Control-Allow-Origin", "*");
@@ -107,14 +116,24 @@ int main(int argc, char** argv) {
     auto exe_p = std::filesystem::canonical(std::filesystem::path(argv[0]), web_ec);
     std::filesystem::path web_dir = exe_p.empty() ? std::filesystem::current_path() / "web"
                                                   : exe_p.parent_path().parent_path() / "web";
+    web_dir = trellis::server_path("TRELLIS_WEB_DIR", web_dir.string());
+    // An explicit route replaces the absolute symlink in the host export.
+    svr.Get("/model-viewer.min.js", [&](const httplib::Request&, httplib::Response& res) {
+        const auto bytes = read_file_bytes(paths.viewer);
+        if (bytes.empty()) {
+            res.status = 404;
+            return;
+        }
+        res.set_content(bytes, "application/javascript");
+    });
     if (std::filesystem::exists(web_dir, web_ec)) {
         svr.set_mount_point("/", web_dir.string());
         fprintf(stderr, "[trellis-server] web UI mounted from %s on /\n", web_dir.string().c_str());
     }
 
     // GET /api/inputs — list all available input images from /mnt/gen4nvme/trellis.cpp/input/
-    svr.Get("/api/inputs", [](const httplib::Request&, httplib::Response& res) {
-        std::string in_dir = "/mnt/gen4nvme/trellis.cpp/input";
+    svr.Get("/api/inputs", [&](const httplib::Request&, httplib::Response& res) {
+        const std::string& in_dir = paths.input;
         std::error_code ec;
         struct Item {
             std::filesystem::file_time_type t;
@@ -145,9 +164,9 @@ int main(int argc, char** argv) {
     });
 
     // GET /input-file/:name — serve raw image from input library
-    svr.Get(R"(/input-file/(.+))", [](const httplib::Request& req, httplib::Response& res) {
+    svr.Get(R"(/input-file/(.+))", [&](const httplib::Request& req, httplib::Response& res) {
         std::string name = sanitize_filename(req.matches[1]);
-        std::string path = "/mnt/gen4nvme/trellis.cpp/input/" + name;
+        std::string path = paths.input + "/" + name;
         std::string bytes = read_file_bytes(path);
         if (bytes.empty()) {
             res.status = 404;
@@ -162,9 +181,9 @@ int main(int argc, char** argv) {
     });
 
     // GET /output-file/:name — serve file from output directory
-    svr.Get(R"(/output-file/(.+))", [](const httplib::Request& req, httplib::Response& res) {
+    svr.Get(R"(/output-file/(.+))", [&](const httplib::Request& req, httplib::Response& res) {
         std::string name = sanitize_filename(req.matches[1]);
-        std::string path = "/mnt/gen4nvme/trellis.cpp/out/" + name;
+        std::string path = paths.output + "/" + name;
         std::string bytes = read_file_bytes(path);
         if (bytes.empty()) {
             res.status = 404;
@@ -180,7 +199,7 @@ int main(int argc, char** argv) {
     });
 
     // POST /api/review — trigger 8-view turnaround sheet generator for a generated GLB
-    svr.Post("/api/review", [](const httplib::Request& req, httplib::Response& res) {
+    svr.Post("/api/review", [&](const httplib::Request& req, httplib::Response& res) {
         std::string glb_name;
         if (req.has_param("glb")) {
             glb_name = req.get_param_value("glb");
@@ -203,7 +222,7 @@ int main(int argc, char** argv) {
         }
 
         std::string clean_glb = sanitize_filename(glb_name);
-        std::string out_dir = "/mnt/gen4nvme/trellis.cpp/out";
+        const std::string& out_dir = paths.output;
         std::string glb_path = out_dir + "/" + clean_glb;
         std::string png_name = clean_glb + ".png";
         std::string png_path = out_dir + "/" + png_name;
@@ -214,8 +233,9 @@ int main(int argc, char** argv) {
             return;
         }
 
-        std::string cmd = "blender --background --python /mnt/gen4nvme/trellis.cpp/tools/render_turnaround_8view.py -- "
-                        + glb_path + " " + png_path + " > /tmp/blender_review.log 2>&1";
+        std::string cmd = "blender --background --python " + shell_quote(paths.review_script)
+                        + " -- " + shell_quote(glb_path) + " " + shell_quote(png_path)
+                        + " > " + shell_quote(paths.review_log) + " 2>&1";
         int rc = std::system(cmd.c_str());
         if (rc != 0 || !std::filesystem::exists(png_path)) {
             res.status = 500;
@@ -297,7 +317,7 @@ int main(int argc, char** argv) {
 
         // Save submitted image into input library (/mnt/gen4nvme/trellis.cpp/input/)
         {
-            std::string in_dir = "/mnt/gen4nvme/trellis.cpp/input";
+            const std::string& in_dir = paths.input;
             std::time_t t_now = std::time(nullptr);
             char in_ts[64];
             std::strftime(in_ts, sizeof(in_ts), "%Y%m%d_%H%M%S", std::localtime(&t_now));
@@ -346,7 +366,7 @@ int main(int argc, char** argv) {
                         std::time_t t = std::time(nullptr);
                         char ts[64];
                         std::strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", std::localtime(&t));
-                        std::string out_dir = "/mnt/gen4nvme/trellis.cpp/out";
+                        const std::string& out_dir = paths.output;
                         std::string model_prefix = (p.family == trellis::ModelFamily::Pixal3D ? "pixal3d" : "trellis");
                         saved_glb_base = model_prefix + "_" + ts + "_s" + std::to_string(p.seed) + ".glb";
                         std::string saved_glb = out_dir + "/" + saved_glb_base;

@@ -101,7 +101,11 @@ def auto_preprocess(input_path, output_path, target_size=1024, padding_ratio=0.1
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Normalize an explicitly selected input image.")
-    parser.add_argument("input", help="source image path")
-    parser.add_argument("output", help="processed PNG path")
+    parser.add_argument("input", nargs="?", default=os.environ.get("TRELLIS_PREPROCESS_INPUT") or None,
+                        help="source image path, or TRELLIS_PREPROCESS_INPUT")
+    parser.add_argument("output", nargs="?", default=os.environ.get("TRELLIS_PREPROCESS_OUTPUT") or None,
+                        help="processed PNG path, or TRELLIS_PREPROCESS_OUTPUT")
     args = parser.parse_args()
+    if not args.input or not args.output:
+        parser.error("input and output paths must be supplied as arguments or environment variables")
     auto_preprocess(args.input, args.output)

@@ -2,7 +2,7 @@
 
 ## image_feature — DinoV3FeatureExtractor (DINOv3 ViT-L/16)
 
-Source: `/tmp/TRELLIS.2/trellis2/modules/image_feature_extractor.py` (identical copy in `/tmp/TRELLIS.2/trellis2/trainers/flow_matching/mixins/image_conditioned.py`). The runtime image-conditioning path is `DinoV3FeatureExtractor`. `DinoV2FeatureExtractor` is dead code for TRELLIS.2 (all gen configs use DINOv3) — IGNORE it for the port.
+Source: `reference/TRELLIS.2/trellis2/modules/image_feature_extractor.py` (identical copy in `reference/TRELLIS.2/trellis2/trainers/flow_matching/mixins/image_conditioned.py`). The runtime image-conditioning path is `DinoV3FeatureExtractor`. `DinoV2FeatureExtractor` is dead code for TRELLIS.2 (all gen configs use DINOv3) — IGNORE it for the port.
 
 ### 0. Which class / model is used
 All four image-conditioned generator configs select DINOv3:

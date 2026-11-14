@@ -4,9 +4,9 @@
 
 ### 0. Confirmation: SAME block math as the validated dense SS flow
 
-`SLatFlowModel` (`/tmp/TRELLIS.2/trellis2/models/structured_latent_flow.py`) is byte-for-byte the same DiT torso as the dense `SparseStructureFlowModel`, only the tensor container changes (sparse `feats[N,1536]` instead of dense `[B,L,1536]`). Proof:
+`SLatFlowModel` (`reference/TRELLIS.2/trellis2/models/structured_latent_flow.py`) is byte-for-byte the same DiT torso as the dense `SparseStructureFlowModel`, only the tensor container changes (sparse `feats[N,1536]` instead of dense `[B,L,1536]`). Proof:
 
-- It builds `num_blocks` × `ModulatedSparseTransformerCrossBlock` (`modulated.py:81`). Compare `_forward` (`modulated.py:142-160`) with the dense `ModulatedTransformerCrossBlock._forward` (`/tmp/TRELLIS.2/trellis2/modules/transformer/modulated.py:140-158`) — the op sequence is identical:
+- It builds `num_blocks` × `ModulatedSparseTransformerCrossBlock` (`modulated.py:81`). Compare `_forward` (`modulated.py:142-160`) with the dense `ModulatedTransformerCrossBlock._forward` (`reference/TRELLIS.2/trellis2/modules/transformer/modulated.py:140-158`) — the op sequence is identical:
   1. mod split into 6 chunks (share_mod path: `(self.modulation + mod).chunk(6, dim=1)`),
   2. `h = norm1(x)` (LayerNorm, NO affine, eps 1e-6); `h = h*(1+scale_msa)+shift_msa`; `h = self_attn(h)`; `h = h*gate_msa`; `x = x+h`,
   3. `h = norm2(x)` (LayerNorm, **affine=True**, eps 1e-6 → has `norm2.weight`,`norm2.bias`); `h = cross_attn(h, context)`; `x = x+h`,

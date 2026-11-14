@@ -12,7 +12,7 @@
 
 .EXAMPLE
   scripts\fetch-models.ps1 -Quant q4
-  scripts\fetch-models.ps1 -Quant q8 -Dest D:\trellis-models
+  scripts\fetch-models.ps1 -Quant q8 -Dest models
 #>
 [CmdletBinding()]
 param(

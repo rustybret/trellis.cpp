@@ -2,7 +2,7 @@
 
 		# SparseStructureFlowModel (ss_flow) — DENSE 3D DiT on 16^3 grid
 
-Config (from `/tmp/TRELLIS.2/configs/gen/ss_flow_img_dit_1_3B_64_bf16.json`, denoiser):
+Config (from `reference/TRELLIS.2/configs/gen/ss_flow_img_dit_1_3B_64_bf16.json`, denoiser):
 `resolution=16, in_channels=8, out_channels=8, model_channels=1536, cond_channels=1024, num_blocks=30, num_heads=12, num_head_channels=64(unused since num_heads given), mlp_ratio=5.3334, pe_mode="rope", share_mod=true, initialization="scaled", qk_rms_norm=true, qk_rms_norm_cross=true`. Runtime dtype = bf16 (file name `_bf16`; weights converted via `convert_to`). `rope_freq` is NOT in config → default `(1.0, 10000.0)`.
 
 ## Derived constants

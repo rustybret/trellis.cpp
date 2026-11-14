@@ -95,7 +95,7 @@ struct TrellisParams {
     float gss = 7.5f;           // sparse-structure guidance strength
     float gsh = 7.5f;           // shape-SLAT guidance strength
     bool voxply = false;        // dump out/myvox.ply              (debug)
-    bool dump_slat = false;     // dump /tmp/hr_slat.bin           (debug)
+    bool dump_slat = false;     // dump hr_slat.bin in the working directory (debug)
     bool dump_bg = false;       // also write the bg-removal cutout as <out>_cutout.png
     std::string dump_post;      // write the raw decoded mesh + sparse PBR volume to this
                                 // path and exit (skips remesh/decimate/UV/bake/GLB) --

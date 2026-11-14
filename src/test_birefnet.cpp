@@ -41,8 +41,8 @@ int main(int argc, char** argv) {
         // write alpha for visual check
         npy::Array a; a.shape = {1024, 1024}; a.data.resize(logits.size());
         for (size_t i = 0; i < logits.size(); ++i) a.data[i] = 1.0f / (1.0f + std::exp(-logits[i]));
-        npy::save("/tmp/birefnet_ref/alpha_cpp.npy", a.data.data(), a.shape);
-        printf("wrote /tmp/birefnet_ref/alpha_cpp.npy\n");
+        npy::save((d + "/alpha_cpp.npy").c_str(), a.data.data(), a.shape);
+        printf("wrote %s/alpha_cpp.npy\n", d.c_str());
     }
     m.free();
     return 0;

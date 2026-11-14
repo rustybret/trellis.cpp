@@ -2,7 +2,7 @@
 
 ## Sparse Structure VAE — DECODER (`ss_dec_conv3d_16l8_fp16`)
 
-Source: `/tmp/TRELLIS.2/trellis2/models/sparse_structure_vae.py` (class `SparseStructureDecoder`, lines 210-306). Weights from `microsoft/TRELLIS-image-large/ckpts/ss_dec_conv3d_16l8_fp16.safetensors`. This is a DENSE 3D conv decoder (no sparse ops). Inference-only for the C++ port.
+Source: `reference/TRELLIS.2/trellis2/models/sparse_structure_vae.py` (class `SparseStructureDecoder`, lines 210-306). Weights from `microsoft/TRELLIS-image-large/ckpts/ss_dec_conv3d_16l8_fp16.safetensors`. This is a DENSE 3D conv decoder (no sparse ops). Inference-only for the C++ port.
 
 ### Role in pipeline
 From `trellis2/pipelines/trellis2_image_to_3d.py:188-235` (`sample_sparse_structure`):

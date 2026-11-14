@@ -7,7 +7,7 @@
 int main() {
     constexpr int W = 4;
     constexpr int H = 8;
-    const char* path = "/tmp/trellis-preprocess-test.png";
+    const char* path = "trellis-preprocess-test.png";
     std::vector<unsigned char> rgba((size_t)W * H * 4, 0);
     for (int y = 1; y < H - 1; ++y) {
         for (int x = 1; x < W - 1; ++x) {

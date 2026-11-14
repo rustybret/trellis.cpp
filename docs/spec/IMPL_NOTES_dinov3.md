@@ -1,7 +1,7 @@
 # DINOv3 ViT-L/16 conditioning — GGML recipe (from timm eva.py + pos_embed_sincos.py)
 
 Golden: tools/ref_dinov3.py (timm `vit_large_patch16_dinov3`, weights = our timm safetensors,
-pre-final-norm + manual non-affine F.layer_norm) → /media/.../ref/dinov3/{cond.npy [1,1029,1024], input_chw.npy [1,3,512,512]}.
+pre-final-norm + manual non-affine F.layer_norm) → ref/dinov3/{cond.npy [1,1029,1024], input_chw.npy [1,3,512,512]}.
 Validation is permutation-invariant in token order (cross-attn keys) — but to compare per-token, emit
 tokens in timm order: [cls, reg0..3, patch0..1023].
 

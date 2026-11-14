@@ -1,4 +1,4 @@
-# DiT implementation recipe (authoritative — from /tmp/TRELLIS.2 source)
+# DiT implementation recipe (authoritative — from reference/TRELLIS.2 source)
 
 Shared by all 3 flow models. SS-flow = dense [B,L=res³,C]; SLAT flows = sparse feats[N,C]
 (same block, tensor is [N,1536] instead of [B,L,1536], attention is over all N voxels of a batch).

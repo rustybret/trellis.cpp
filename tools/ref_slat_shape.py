@@ -7,7 +7,10 @@ import os, sys, json
 os.environ["ATTN_BACKEND"] = "sdpa"
 os.environ["SPCONV_ALGO"] = "native"
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-sys.path.insert(0, "/tmp/TRELLIS.2")
+reference_dir = os.environ.get("TRELLIS_REFERENCE_DIR")
+if not reference_dir:
+    sys.exit("TRELLIS_REFERENCE_DIR must point to the TRELLIS.2 reference checkout")
+sys.path.insert(0, reference_dir)
 import numpy as np, torch
 from safetensors.torch import load_file
 from trellis2.models.structured_latent_flow import SLatFlowModel
@@ -35,8 +38,9 @@ def _sdpa(*args, **kwargs):
     return s.replace(out) if s is not None else out
 _spm.sparse_scaled_dot_product_attention = _sdpa
 
-CK = "/media/ilintar/D_SSD/models/trellis2/ckpts/slat_flow_img2shape_dit_1_3B_512_bf16"
-OUT = os.environ.get("OUT", "/media/ilintar/D_SSD/models/trellis2/ref/slat_shape"); os.makedirs(OUT, exist_ok=True)
+M = os.environ.get("TRELLIS_MODELS", "models/trellis2")
+CK = os.path.join(M, "ckpts/slat_flow_img2shape_dit_1_3B_512_bf16")
+OUT = os.environ.get("OUT", os.path.join(M, "ref/slat_shape")); os.makedirs(OUT, exist_ok=True)
 DEV = os.environ.get("REF_DEV", "cuda:1"); DT = torch.float32
 GS = float(os.environ.get("GS", "7.5")); GR = float(os.environ.get("GR", "0.5"))
 N = int(os.environ.get("N", "3000")); RES = 32; NIMG = 1029

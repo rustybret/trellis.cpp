@@ -2,11 +2,11 @@
 
 ## tex_dec — SparseUnetVaeDecoder (texture/PBR SLAT decoder)
 
-Class: `SparseUnetVaeDecoder` in `/tmp/TRELLIS.2/trellis2/models/sc_vaes/sparse_unet_vae.py` (lines 398-522).
-Authoritative config: `/tmp/TRELLIS.2/configs/scvae/tex_vae_next_dc_f16c32_fp16.json` (decoder block, lines 43-83). A `_ft_512` variant exists with the same model args (only training/dataset differ).
+Class: `SparseUnetVaeDecoder` in `reference/TRELLIS.2/trellis2/models/sc_vaes/sparse_unet_vae.py` (lines 398-522).
+Authoritative config: `reference/TRELLIS.2/configs/scvae/tex_vae_next_dc_f16c32_fp16.json` (decoder block, lines 43-83). A `_ft_512` variant exists with the same model args (only training/dataset differ).
 
 ### Role in pipeline
-In `Trellis2TexturingPipeline.decode_tex_slat` (`/tmp/TRELLIS.2/trellis2/pipelines/trellis2_texturing.py:267-285`):
+In `Trellis2TexturingPipeline.decode_tex_slat` (`reference/TRELLIS.2/trellis2/pipelines/trellis2_texturing.py:267-285`):
 ```
 ret = self.models['tex_slat_decoder'](slat) * 0.5 + 0.5
 ```
@@ -92,7 +92,7 @@ DIM=3, factor=2, factor**DIM=8.
 Subclass of nn.LayerNorm that casts input to fp32, runs standard LayerNorm, casts back. Formula: standard layer norm over last dim, eps as given (1e-6 in res/convnext blocks; 1e-5 default in the final F.layer_norm at decoder end). Affine when elementwise_affine=True (weight,bias present); norm2 in res blocks has NO affine params.
 
 ### SparseConv3d weights (flex_gemm backend — the inference backend)
-`/tmp/TRELLIS.2/trellis2/modules/sparse/conv/conv_flex_gemm.py`: builds `self.weight = nn.Parameter(empty(out_channels, in_channels, Kd, Kh, Kw))` then permutes to `(Co, Kd, Kh, Kw, Ci) = (out, 3, 3, 3, in)` contiguous and re-wraps as Parameter (line 34). `self.bias = nn.Parameter(empty(out_channels))` (kernel_size 3 => 3x3x3 submanifold conv, stride 1, dilation 1). So stored checkpoint weight shape for SparseConv3d is `[out, 3, 3, 3, in]`. (The spconv/torchsparse backends nest under `.conv.weight`; flex_gemm is flat `.weight`/`.bias` — confirm which the released checkpoint uses; see open questions.)
+`reference/TRELLIS.2/trellis2/modules/sparse/conv/conv_flex_gemm.py`: builds `self.weight = nn.Parameter(empty(out_channels, in_channels, Kd, Kh, Kw))` then permutes to `(Co, Kd, Kh, Kw, Ci) = (out, 3, 3, 3, in)` contiguous and re-wraps as Parameter (line 34). `self.bias = nn.Parameter(empty(out_channels))` (kernel_size 3 => 3x3x3 submanifold conv, stride 1, dilation 1). So stored checkpoint weight shape for SparseConv3d is `[out, 3, 3, 3, in]`. (The spconv/torchsparse backends nest under `.conv.weight`; flex_gemm is flat `.weight`/`.bias` — confirm which the released checkpoint uses; see open questions.)
 
 ### Renderer at inference (PbrMeshRenderer, pbr_mesh_renderer.py)
 Two consumption paths from the 6-ch voxel/texture:

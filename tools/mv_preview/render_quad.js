@@ -1,10 +1,10 @@
 // Standalone Playwright renderer: load quad.html per asset, capture 4 framed views at 2048px, write PNGs.
 // Replaces the killed Playwright MCP. Uses the same scroll-into-view + settle recipe that fixed stale captures.
-const PW = '/home/ilintar/.npm/_npx/9833c18b2d85bc59/node_modules/playwright';
+const PW = process.env.PLAYWRIGHT_MODULE || 'playwright';
 const { chromium } = require(PW);
 const fs = require('fs');
 
-const MV = '/devel/alt/trellis.cpp/tools/mv_preview';
+const MV = process.env.TRELLIS_PREVIEW_DIR || __dirname;
 const BASE = 'http://localhost:8178';
 const SIZE = 2048;
 const assets = process.argv.slice(2);           // e.g. chariot spacestation imp femaleknight
@@ -12,7 +12,7 @@ if (!assets.length) { console.error('usage: node render_quad.js <asset...>'); pr
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: '/home/ilintar/.cache/ms-playwright/chromium-1229/chrome-linux64/chrome',
+    executablePath: process.env.TRELLIS_PREVIEW_BROWSER,
     headless: true,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
            '--ignore-gpu-blocklist', '--no-sandbox'],

@@ -5,7 +5,7 @@ Usage: ref_birefnet.py <image.png> [out_dir]   (REF_DEV env picks cuda device)""
 import os, sys, types, json, importlib.util
 import numpy as np
 
-BIREF = "/media/ilintar/D_SSD/models/trellis2/birefnet"
+BIREF = os.path.join(os.environ.get("TRELLIS_MODELS", "models/trellis2"), "birefnet")
 
 # kornia is only used by the training-time laplacian; stub it so import works for inference
 kf = types.ModuleType("kornia.filters"); kf.laplacian = lambda *a, **k: a[0]
@@ -24,7 +24,7 @@ B = sys.modules["bn_pkg.birefnet"]
 
 dev = os.environ.get("REF_DEV", "cuda:0")
 img_path = sys.argv[1]
-out_dir = sys.argv[2] if len(sys.argv) > 2 else "/tmp/birefnet_ref"
+out_dir = sys.argv[2] if len(sys.argv) > 2 else "birefnet_ref"
 os.makedirs(out_dir, exist_ok=True)
 
 # --- build model architecture (no backbone pretrained dl), load full weights ---

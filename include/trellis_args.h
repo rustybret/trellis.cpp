@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
+#include "multiview.h"
 
 namespace trellis {
 
@@ -29,6 +30,7 @@ const char* model_family_name(ModelFamily f);
 // launch defaults, then per request to apply overrides (resolution, bg removal, ...).
 struct TrellisParams {
     std::string image;                                          // input image (image->3D)
+    MultiviewSpec multiview;
     std::string output = "model.glb";                           // output .glb
     std::string copyright;                                      // glTF asset.copyright metadata
     std::string models = "models";              // GGUF dir; override with --models DIR

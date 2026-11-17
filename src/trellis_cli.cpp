@@ -10,6 +10,7 @@
 #include "pixal3d.h"
 #include "flow_runner.h"
 #include "ss_decoder.h"
+#include "multiview.h"
 #include "shape_decoder.h"
 #include "dual_grid.h"
 #include "mesh_glb.h"
@@ -197,12 +198,17 @@ int trellis_run(const trellis::TrellisParams& cfg) {
                     fa_auto_htp ? " (HTP default)" : "");
         }
     }
-    const std::string& img = cfg.image;
+    const bool multiview = cfg.multiview.active();
+    const std::string img = multiview ? *cfg.multiview.path(trellis::ViewSlot::Front) : cfg.image;
     const std::string& outglb = cfg.output;
     const std::string& M = cfg.models;
     const int gpu = cfg.gpu;
     const bool cascade = cfg.cascade;   // 1024 cascade is the TRELLIS default; --res 512 forces the light path
 
+    if (multiview && cfg.family == trellis::ModelFamily::Pixal3D) throw std::runtime_error("multiview requires --model trellis");
+    if (multiview)
+        printf("[trellis] multiview mode=%s slots=%zu front=%s\n",
+               trellis::multiview_mode_name(cfg.multiview.mode), cfg.multiview.views.size(), img.c_str());
     // --model pixal3d. Everything below the conditioning — sampler schedules, guidance, the SS /
     // shape / texture decoders, the remesh and the bake — is shared with TRELLIS.2; only how the
     // image enters each DiT changes. See pixal3d.h.
@@ -313,6 +319,12 @@ int trellis_run(const trellis::TrellisParams& cfg) {
         else
             fprintf(stderr, "      [warn] could not write bg-removal cutout to %s\n", cut_png.c_str());
         if (cfg.bg_only) { printf("[bg-only] done (%.1fs)\n", now() - t0); return 0; }
+    if (multiview && cfg.dump_bg && !cfg.bg_only) {
+        const std::string front_png = outglb.substr(0, outglb.find_last_of('.')) + "_front_cutout.png";
+        const int front_channels = cut_sz > 0 && cutout.size() == (size_t)cut_sz * cut_sz * 4 ? 4 : 3;
+        if (!stbi_write_png(front_png.c_str(), cut_sz, cut_sz, front_channels, cutout.data(), cut_sz * front_channels))
+            fprintf(stderr, "      [warn] could not write %s\n", front_png.c_str());
+    }
     }
 
     // Raw [0,1] guides for NAF. The DINOv3 branch wants the ImageNet-normalized tensor; NAF's
@@ -323,11 +335,73 @@ int trellis_run(const trellis::TrellisParams& cfg) {
         if (cascade) guide1024 = trellis::cutout_to_chw01(cutout, cut_sz, 1024);
     }
 
+    std::vector<std::vector<float>> mv_conds, mv_conds1024;
+    auto encode_extra_view = [&](const trellis::ViewSpec& view, trellis::Model& dino_model) {
+        std::vector<unsigned char> view_cutout;
+        int view_cut_sz = 0;
+        bool view_birefnet = cfg.birefnet == 1;
+        if (cfg.birefnet < 0) {
+            view_birefnet = !trellis::image_has_alpha(view.path);
+            FILE* bf = fopen((M + "/birefnet.gguf").c_str(), "rb");
+            if (bf) fclose(bf); else view_birefnet = false;
+        }
+        auto run_view_matte = [&](bool on_cpu) {
+            const std::string saved_backend = trellis::g_backend;
+            if (on_cpu) trellis::g_backend = "CPU";
+            trellis::Model bm = trellis::Model::load(M + "/birefnet.gguf", on_cpu ? -1 : gpu);
+            trellis::g_backend = saved_backend;
+            try {
+                view_cutout = trellis::birefnet_cutout(view.path, bm, gpu < 0 ? 0 : gpu, view_cut_sz);
+            } catch (...) {
+                bm.free();
+                throw;
+            }
+            bm.free();
+        };
+        if (view_birefnet) {
+            try {
+                run_view_matte(backend_is_htp(requested_backend));
+            } catch (const trellis::BirefnetAllocError& e) {
+                printf("      %s\n", e.what());
+                if (cfg.birefnet == 1) throw;
+                printf("      -> falling back to the threshold matte for %s\n", view.path.c_str());
+                view_cutout = trellis::threshold_cutout(view.path, view_cut_sz);
+            }
+        } else {
+            view_cutout = trellis::threshold_cutout(view.path, view_cut_sz);
+        }
+        if (view_cutout.empty()) throw std::runtime_error("background removal failed for " + view.path);
+        if (cfg.dump_bg || cfg.bg_only) {
+            const std::string cut_png = outglb.substr(0, outglb.find_last_of('.')) + "_" +
+                trellis::view_slot_name(view.slot) + "_cutout.png";
+            const int channels = view_cut_sz > 0 && view_cutout.size() == (size_t)view_cut_sz * view_cut_sz * 4 ? 4 : 3;
+            if (!stbi_write_png(cut_png.c_str(), view_cut_sz, view_cut_sz, channels, view_cutout.data(), view_cut_sz * channels))
+                fprintf(stderr, "      [warn] could not write %s\n", cut_png.c_str());
+        }
+        std::vector<std::vector<float>> encoded;
+        encoded.push_back(trellis::dinov3_encode(dino_model,
+            trellis::normalize_cutout(view_cutout, view_cut_sz, 512), 512));
+        if (cascade)
+            encoded.push_back(trellis::dinov3_encode(dino_model,
+                trellis::normalize_cutout(view_cutout, view_cut_sz, 1024), 1024));
+        return encoded;
+    };
+
     printf("[2/6] DINOv3 conditioning\n");
     vector<float> dino, dino1024;       // full token stream: 5 global + (S/16)^2 patches
     { trellis::Model m = trellis::Model::load(M + "/dinov3.gguf", gpu);
       dino = trellis::dinov3_encode(m, chw, 512);
       if (cascade) dino1024 = trellis::dinov3_encode(m, chw1024, 1024);
+      if (multiview) {
+          for (std::size_t i = 1; i < cfg.multiview.views.size(); ++i) {
+              auto encoded = encode_extra_view(cfg.multiview.views[i], m);
+              if (encoded.empty() || encoded[0].size() != dino.size() ||
+                  (cascade && (encoded.size() < 2 || encoded[1].size() != dino1024.size())))
+                  throw std::runtime_error("multiview conditioning token mismatch");
+              mv_conds.push_back(std::move(encoded[0]));
+              if (cascade) mv_conds1024.push_back(std::move(encoded[1]));
+          }
+      }
       m.free(); }
     // TRELLIS.2 cross-attends over every token. Pixal3D cross-attends over the 5 global tokens
     // (cls + registers) only and routes the patch grid through the projection branch instead, so
@@ -337,6 +411,13 @@ int trellis_run(const trellis::TrellisParams& cfg) {
     vector<float> cond1024;
     if (cascade)
         cond1024 = pix ? vector<float>(dino1024.begin(), dino1024.begin() + N_GLOBAL_FLOAT) : dino1024;
+    if (multiview) {
+        mv_conds.insert(mv_conds.begin(), cond);
+        if (cascade) mv_conds1024.insert(mv_conds1024.begin(), cond1024);
+        if (mv_conds.size() != cfg.multiview.views.size() ||
+            (cascade && mv_conds1024.size() != cfg.multiview.views.size()))
+            throw std::runtime_error("multiview conditioning view count mismatch");
+    }
     const int Lc = (int)(cond.size() / 1024);
     vector<float> neg(cond.size(), 0.0f);
     const int Lc1024 = cascade ? (int)(cond1024.size() / 1024) : 0;
@@ -344,6 +425,37 @@ int trellis_run(const trellis::TrellisParams& cfg) {
     printf("      cond tokens=%d%s\n", Lc, cascade ? (" / 1024-cond tokens=" + std::to_string(Lc1024)).c_str() : "");
     slat_stats("cond_512 (DINOv3@512)", cond);
     if (cascade) slat_stats("cond_1024 (DINOv3@1024)", cond1024);
+
+    auto multiview_sample = [&](const trellis::FlowFwd& fwd, std::vector<float>& sample,
+                                const std::vector<std::vector<float>>& conds,
+                                const std::vector<float>& negv,
+                                std::size_t channels,
+                                const std::vector<float>& weights,
+                                const trellis::SamplerParams& sp) {
+        if (conds.empty()) throw std::runtime_error("no multiview conditions");
+        const std::size_t cond_floats = conds.front().size();
+        std::vector<trellis::FlowCond> flow_conds;
+        std::vector<std::size_t> cond_lengths;
+        for (const auto& c : conds) {
+            if (c.size() != cond_floats) throw std::runtime_error("multiview condition size mismatch");
+            flow_conds.push_back(trellis::FlowCond(c.data()));
+            cond_lengths.push_back(c.size());
+        }
+        if (negv.size() != cond_floats) throw std::runtime_error("negative condition size mismatch");
+        std::string error;
+        if (!trellis::sample_flow_multiview(fwd, sample, flow_conds,
+                                            trellis::FlowCond(negv.data()), cond_floats,
+                                            channels, weights, sp, nullptr, &error, &cond_lengths))
+            throw std::runtime_error("multiview sampling failed: " + error);
+    };
+    auto stage_weights = [&](trellis::FlowStage stage,
+                             const std::vector<std::array<int,3>>* coords, int grid) {
+        std::vector<float> weights;
+        std::string error;
+        if (!trellis::multiview_weights(cfg.multiview, stage, coords, grid, weights, &error))
+            throw std::runtime_error("multiview weights failed: " + error);
+        return weights;
+    };
 
     // Per-stage projection conditioning. `proj_ch` is read off the stage's own proj_linear rather
     // than guessed from a config, which also doubles as the check that a --model pixal3d run is
@@ -391,9 +503,15 @@ int trellis_run(const trellis::TrellisParams& cfg) {
         trellis::DitRunner* run = trellis::make_dense_runner(m, p, 16, Lc);
         trellis::FlowFwd fwd = [&](const vector<float>& x, float ts, const trellis::FlowCond& c){ return run->forward(x, ts, c); };
         trellis::SamplerParams sp; sp.steps=(cfg.steps>0?cfg.steps:12); sp.guidance_strength=cfg.gss; sp.guidance_rescale=0.7f; sp.gi0=0.6f; sp.gi1=1.0f; sp.rescale_t=5.0f;
-        vector<float> z = trellis::sample_flow(fwd, noise(8*4096),
-                              trellis::FlowCond(cond.data(), pix ? pc.proj.data()     : nullptr),
-                              trellis::FlowCond(neg.data(),  nullptr), sp);  // [8,4096] ne0=8
+        vector<float> z = noise(8*4096);
+        if (multiview) {
+            const auto weights = stage_weights(trellis::FlowStage::Ss, nullptr, 16);
+            multiview_sample(fwd, z, mv_conds, neg, 8, weights, sp);
+        } else {
+            z = trellis::sample_flow(fwd, z,
+                    trellis::FlowCond(cond.data(), pix ? pc.proj.data() : nullptr),
+                    trellis::FlowCond(neg.data(), nullptr), sp);
+        }
         delete run; m.free();
         // transpose [8,L] -> torch [8,16,16,16] memory (c*4096 + sp)
         vector<float> zdec(8*4096);
@@ -427,7 +545,8 @@ int trellis_run(const trellis::TrellisParams& cfg) {
     // They are ignored in TRELLIS.2 mode.
     auto shape_flow = [&](const std::string& path, const vector<std::array<int,3>>& cds,
                           const float* cnd, const float* ncnd, int lc,
-                          int grid_res, int S, int naf_out) {
+                          int grid_res, int S, int naf_out,
+                          const std::vector<std::vector<float>>* mv_conds_stage = nullptr) {
         const int n = (int)cds.size();
         trellis::Model m = trellis::Model::load(path, gpu);
         trellis::DiTParams p; p.in_ch = 32; p.out_ch = 32; p.d_cond = 1024; p.cast_f32 = F32;
@@ -437,9 +556,15 @@ int trellis_run(const trellis::TrellisParams& cfg) {
         trellis::DitRunner* run = trellis::make_sparse_runner(m, p, cds, lc);
         trellis::FlowFwd fwd = [&](const vector<float>& x, float ts, const trellis::FlowCond& c){ return run->forward(x, ts, c); };
         trellis::SamplerParams sp; sp.steps=(cfg.steps>0?cfg.steps:12); sp.guidance_strength=cfg.gsh; sp.guidance_rescale=0.5f; sp.gi0=0.6f; sp.gi1=1.0f; sp.rescale_t=3.0f;
-        vector<float> sn = trellis::sample_flow(fwd, noise((size_t)32*n),
-                               trellis::FlowCond(cnd,  pix ? pc.proj.data()     : nullptr),
-                               trellis::FlowCond(ncnd, nullptr), sp);   // [32,n]
+        vector<float> sn = noise((size_t)32*n);
+        if (multiview && mv_conds_stage && mv_conds_stage->size() > 1) {
+            const auto weights = stage_weights(trellis::FlowStage::Shape, &cds, grid_res);
+            multiview_sample(fwd, sn, *mv_conds_stage, S == 1024 ? neg1024 : neg, 32, weights, sp);
+        } else {
+            sn = trellis::sample_flow(fwd, sn,
+                    trellis::FlowCond(cnd, pix ? pc.proj.data() : nullptr),
+                    trellis::FlowCond(ncnd, nullptr), sp);
+        }
         delete run; m.free();
         return sn;
     };
@@ -467,7 +592,7 @@ int trellis_run(const trellis::TrellisParams& cfg) {
         printf("[4/7] shape SLAT flow (LR 512 -> upsample -> HR %d cascade, max_tok=%d)\n", hr_target, max_tok);
         // (1) LR shape flow @res32 with cond_512
         lr_norm = shape_flow(M + FP + "shape_flow_512.gguf", coords, cond.data(), neg.data(), Lc,
-                             /*grid_res=*/32, /*S=*/512, /*naf_out=*/512);
+                             /*grid_res=*/32, /*S=*/512, /*naf_out=*/512, &mv_conds);
         lr_dn.resize(lr_norm.size());
         for (size_t n = 0; n < coords.size(); ++n) for (int c = 0; c < 32; ++c)
             lr_dn[(size_t)c + 32*n] = lr_norm[(size_t)c + 32*n]*SHAPE_STD[c] + SHAPE_MEAN[c];
@@ -525,13 +650,13 @@ int trellis_run(const trellis::TrellisParams& cfg) {
                    trellis::pixal3d_cross_res_agreement(dino1024, 1024, dino, 512,
                                                         hr_res / 16, cam, shc));
         slat_norm = shape_flow(M + FP + "shape_flow_1024.gguf", shc, cond1024.data(), neg1024.data(), Lc1024,
-                               /*grid_res=*/hr_res / 16, /*S=*/1024, /*naf_out=*/512);
+                               /*grid_res=*/hr_res / 16, /*S=*/1024, /*naf_out=*/512, &mv_conds1024);
         RES = hr_res; cond_dec = cond1024.data(); neg_dec = neg1024.data(); Lc_dec = Lc1024;
     } else {
         printf("[4/7] shape SLAT flow (512)\n");
         shc = coords;
         slat_norm = shape_flow(M + FP + "shape_flow_512.gguf", coords, cond.data(), neg.data(), Lc,
-                               /*grid_res=*/32, /*S=*/512, /*naf_out=*/512);
+                               /*grid_res=*/32, /*S=*/512, /*naf_out=*/512, &mv_conds);
     }
     const int N = (int)shc.size();
     slat_dn.resize(slat_norm.size());

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 project(trellis_cpp VERSION 0.8.1 LANGUAGES CXX C)
+enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -100,6 +101,7 @@ add_library(trellis_core STATIC
   src/trellis_model.cpp
   src/dit.cpp
   src/flow_runner.cpp
+  src/multiview.cpp
   src/ss_decoder.cpp
   src/mesh_glb.cpp
   src/dinov3.cpp
@@ -490,6 +492,18 @@ set_target_properties(trellis-server PROPERTIES BUILD_RPATH "${GGML_RPATH}")
 
 add_executable(trellis-test-server-paths src/test_server_paths.cpp)
 target_include_directories(trellis-test-server-paths PRIVATE include)
+
+add_executable(trellis-test-multiview-flow src/test_multiview_flow.cpp)
+target_include_directories(trellis-test-multiview-flow PRIVATE include)
+target_link_libraries(trellis-test-multiview-flow PRIVATE trellis_core)
+set_target_properties(trellis-test-multiview-flow PROPERTIES BUILD_RPATH "${GGML_RPATH}")
+add_test(NAME multiview-math COMMAND trellis-test-multiview-flow --case all)
+
+add_executable(trellis-test-multiview-args src/test_multiview_args.cpp src/trellis_args.cpp)
+target_include_directories(trellis-test-multiview-args PRIVATE include)
+target_link_libraries(trellis-test-multiview-args PRIVATE trellis_core)
+set_target_properties(trellis-test-multiview-args PROPERTIES BUILD_RPATH "${GGML_RPATH}")
+add_test(NAME multiview-args COMMAND trellis-test-multiview-args --case all)
 
 add_executable(trellis-test-ss-full src/test_ss_full.cpp)
 target_link_libraries(trellis-test-ss-full PRIVATE trellis_core)

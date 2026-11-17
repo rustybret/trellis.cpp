@@ -8,6 +8,7 @@
 #include <cstring>
 #include <string>
 #include <stdexcept>
+#include <vector>
 
 namespace trellis {
 
@@ -88,6 +89,8 @@ void print_usage(const char* argv0, bool server) {
     fprintf(stderr,
         "\n"
         "  -i, --image PATH        input image                  (image->3D)\n"
+        "      --view SLOT=PATH    named view: front|back|left|right, 2-4 unique slots\n"
+        "      --mv-mode MODE      uniform|shape-directional|ss-shape-directional\n"
         "  -o, --output PATH       output .glb                  (default model.glb)\n"
         "      --copyright TEXT    glTF asset.copyright metadata\n"
         "  -m, --models DIR        GGUF model directory\n"
@@ -179,7 +182,9 @@ void print_usage(const char* argv0, bool server) {
 }
 
 bool parse_args(int argc, char** argv, TrellisParams& p) {
-    int positional = 0;
+    struct Positional { std::string value; int order; };
+    std::vector<Positional> positional;
+    int image_flag_order = -1, output_flag_order = -1;
 
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
@@ -205,8 +210,8 @@ bool parse_args(int argc, char** argv, TrellisParams& p) {
         };
 
         if      (a == "-h" || a == "--help")    { p.help = true; return false; }
-        else if (a == "-i" || a == "--image")   { const char* v = need(a.c_str()); if (!v) return false; p.image = v; }
-        else if (a == "-o" || a == "--output")  { const char* v = need(a.c_str()); if (!v) return false; p.output = v; }
+        else if (a == "-i" || a == "--image")   { const char* v = need(a.c_str()); if (!v) return false; p.image = v; image_flag_order = i; }
+        else if (a == "-o" || a == "--output")  { const char* v = need(a.c_str()); if (!v) return false; p.output = v; output_flag_order = i; }
         else if (a == "--copyright")            { const char* v = need(a.c_str()); if (!v) return false; p.copyright = v; }
         else if (a == "-m" || a == "--models")  { const char* v = need(a.c_str()); if (!v) return false; p.models = v; }
         else if (a == "--model")                { const char* v = need(a.c_str()); if (!v) return false;
@@ -283,10 +288,40 @@ bool parse_args(int argc, char** argv, TrellisParams& p) {
         else if (a == "--port")                 { const char* v = need(a.c_str()); if (!v) return false; p.port = atoi(v); }
         else if (a == "--voxply")               { p.voxply = true; }
         else if (a == "--dump-slat")            { p.dump_slat = true; }
+        else if (a == "--view")                 { const char* v = need(a.c_str()); if (!v) return false;
+                                                  std::string error;
+                                                  if (!parse_view_arg(v, p.multiview, error)) { fprintf(stderr, "[trellis] %s\n", error.c_str()); return false; } }
+        else if (a == "--mv-mode")              { const char* v = need(a.c_str()); if (!v) return false;
+                                                  std::string error;
+                                                  if (!parse_multiview_mode_arg(v, p.multiview, error)) { fprintf(stderr, "[trellis] %s\n", error.c_str()); return false; } }
         else if (!a.empty() && a[0] == '-')     { fprintf(stderr, "[trellis] unknown option: %s\n", a.c_str()); return false; }
-        else if (positional == 0)               { p.image  = a; positional = 1; }
-        else if (positional == 1)               { p.output = a; positional = 2; }
-        else                                    { fprintf(stderr, "[trellis] unexpected argument: %s\n", a.c_str()); return false; }
+        else                                    { positional.push_back({a, i}); }
+    }
+    {
+        std::string error;
+        if (!validate_multiview(p.multiview, p.family == ModelFamily::Pixal3D, !p.image.empty(), error)) {
+            fprintf(stderr, "[trellis] %s\n", error.c_str());
+            return false;
+        }
+        if (p.multiview.views.empty()) {
+            if (positional.size() > 2) {
+                fprintf(stderr, "[trellis] unexpected argument: %s\n", positional[2].value.c_str());
+                return false;
+            }
+            if (positional.size() >= 1 && positional[0].order > image_flag_order) p.image  = positional[0].value;
+            if (positional.size() >= 2 && positional[1].order > output_flag_order) p.output = positional[1].value;
+        } else {
+            if (positional.size() > 1) {
+                fprintf(stderr, "[trellis] unexpected argument: %s\n", positional[1].value.c_str());
+                return false;
+            }
+            if (positional.size() == 1 && positional[0].order > output_flag_order) p.output = positional[0].value;
+            if (p.multiview.views.size() == 1 && p.multiview.views[0].slot == ViewSlot::Front) {
+                p.image = p.multiview.views[0].path;
+                p.multiview.views.clear();
+                p.multiview.mode_explicit = false;
+            }
+        }
     }
     if (p.retopo && ((p.retopo_grid!=512 && p.retopo_grid!=1024 && p.retopo_grid!=1536) ||
                      p.retopo_first_faces<0 || p.retopo_final_faces<=0 ||
